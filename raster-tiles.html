@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="yes" name="apple-mobile-web-app-capable">
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet@0.7.7/dist/leaflet.css" />
     <style>
         body {
             padding: 0;
@@ -20,17 +20,13 @@
 </head>
 <body>
     <div id="map"></div>
-    <script type="text/javascript" src="https://unpkg.com/leaflet@1.9.3/dist/leaflet-src.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/leaflet@0.7.7/dist/leaflet-src.js"></script>
     <script type="text/javascript" src="./dist/leaflet-ptv-developer-src.js"></script>
     <script type="text/javascript" src="./api-key.js"></script>
     <script>
         var coordinate = L.latLng(49.012, 8.4044); // Karlsruhe, Germany
 
-        var tileSize = 256; // 512 or 1024 are also possible
-        var zoomOffset = tileSize === 256 ? 0 : tileSize === 512 ? -1 : - 2;
-
         var map = L.map('map', {
-            fullscreenControl: true
         }).setView(coordinate, 17);
 
         // insert a standard PTV Developer raster base tiles. 
@@ -39,51 +35,42 @@
             '?apiKey={token}&layers={layers}&size={tileSize}', {
                 attribution: '&copy; ' + new Date().getFullYear() + ' PTV Group, HERE, TomTom',
                 layers: 'background,transport',
-                tileSize: tileSize,
+                tileSize: 256,
                 token: window.apiKey,
-                maxZoom: 22,
-                zoomOffset: zoomOffset,
-                pane: 'tilePane'
+                maxZoom: 22
             }).addTo(map);
-
-        // create a new pane for our overlay layer
-        map.createPane('clickableTiles');
-        map.getPane('clickableTiles').style.zIndex = 500;
 
         // insert clickable restrictions layer. 
         var restrictionsLayer = L.tileLayer.ptvDeveloper(
             'https://api.myptv.com/rastermaps/v1/data-tiles/{z}/{x}/{y}' +
             '?apiKey={token}&layers={layers}&size={tileSize}', {
-                tileSize: tileSize,
+                tileSize: 256,
                 layers: 'restrictions',
                 token: window.apiKey,
                 maxZoom: 22,
-                zoomOffset: zoomOffset,
-                pane: 'clickableTiles'
+                zIndex: 5
             }).addTo(map);
 
         // insert clickable traffic incident layer. 
         var trafficIncidentsLayer = L.tileLayer.ptvDeveloper(
             'https://api.myptv.com/rastermaps/v1/data-tiles/{z}/{x}/{y}' +
             '?apiKey={token}&layers={layers}&size={tileSize}', {
-                tileSize: tileSize,
+                tileSize: 256,
                 layers: 'trafficIncidents',
                 token: window.apiKey,
                 maxZoom: 22,
-                zoomOffset: zoomOffset,
-                pane: 'clickableTiles'
+                zIndex: 6
             })
 
         // insert label layer on the top
         var labelsLayer = L.tileLayer(
             'https://api.myptv.com/rastermaps/v1/image-tiles/{z}/{x}/{y}' +
             '?apiKey={token}&layers={layers}&size={tileSize}', {
-                tileSize: tileSize,
+                tileSize: 256,
                 layers: 'labels',
                 token: window.apiKey,
                 maxZoom: 22,
-                zoomOffset: zoomOffset,
-                pane: 'clickableTiles'
+                zIndex: 7
             }).addTo(map);
    
         // add a layer switcher
@@ -95,8 +82,7 @@
         };
 
         L.control.layers({}, layers, {
-            position: 'bottomleft',
-            autoZIndex: false
+            position: 'bottomleft'
         }).addTo(map);
 
     </script>

@@ -1,7 +1,7 @@
 {
-  "name": "leaflet-ptv-developer",
+  "name": "leaflet-ptv-developer-legacy",
   "version": "1.0.3",
-  "description": "Extended Leaflet classes for PTV Developer",
+  "description": "Extended Leaflet 0.7.7 classes for PTV Developer (legacy)",
   "files": [
     "dist"
   ],
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/PTV-Group/leaflet-ptv-developer.git"
+    "url": "git://github.com/mathias-hess/leaflet-ptv-developer-legacy.git"
   },
   "scripts": {
     "build": "node build.mjs",
@@ -23,15 +23,15 @@
   ],
   "author": {
     "name": "Mathias Heß",
-    "email": "mathias.hess@ptvgroup.com"
+    "email": "mathias.hess@ptvlogistics.com"
   },
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/PTV-Group/leaflet-ptv-developer/issues"
+    "url": "https://github.com/mathias-hess/leaflet-ptv-developer-legacy/issues"
   },
-  "homepage": "https://github.com/PTV-Group/leaflet-ptv-developer",
+  "homepage": "https://github.com/mathias-hess/leaflet-ptv-developer-legacy",
   "dependencies": {
-    "leaflet": "1.9.4",
+    "leaflet": "0.7.7",
     "superagent": "9.0.2"
   },
   "devDependencies": {

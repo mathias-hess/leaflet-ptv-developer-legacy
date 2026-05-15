@@ -5,32 +5,31 @@ var L = require('leaflet'),
 
 L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 	options: {
-		disableMouseEvents : false,
+		disableMouseEvents: false,
 	},
 
 	initialize: function (url, options) {
-		options = L.setOptions(this, options);
-		
+		L.setOptions(this, options);
 		L.TileLayer.prototype.initialize.call(this, url, options);
 	},
 
 	onAdd: function (map) {
 		L.TileLayer.prototype.onAdd.call(this, map);
 
-		if(!this.options.disableMouseEvents) {
+		if (!this.options.disableMouseEvents) {
 			map._container.addEventListener('mousemove', L.bind(this._onMouseMove, this), true);
-			map._mapPane.addEventListener('mousedown', L.bind(this._onMouseDown, this), true);
-			map._mapPane.addEventListener('click', L.bind(this._onClick, this), true);
-			map.addEventListener('click', L.bind(this._onMapClick, this), false);
+			map._container.addEventListener('mousedown', L.bind(this._onMouseDown, this), true);
+			map._container.addEventListener('click', L.bind(this._onClick, this), true);
+			map.on('click', this._onMapClick, this);
 		}
 	},
 
 	onRemove: function (map) {
-		if(!this.options.disableMouseEvents) {
+		if (!this.options.disableMouseEvents) {
 			map._container.removeEventListener('mousemove', L.bind(this._onMouseMove, this), true);
-			map._mapPane.removeEventListener('mousedown', L.bind(this._onMouseDown, this), true);
-			map._mapPane.removeEventListener('click', L.bind(this._onClick, this), true);
-			map.removeEventListener('click', L.bind(this._onMapClick, this), false);
+			map._container.removeEventListener('mousedown', L.bind(this._onMouseDown, this), true);
+			map._container.removeEventListener('click', L.bind(this._onClick, this), true);
+			map.off('click', this._onMapClick, this);
 		}
 
 		L.TileLayer.prototype.onRemove.call(this, map);
@@ -48,6 +47,8 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 		for (i = 0, len = tiles.length; i < len; i++) {
 			tile = tiles[i];
 			var mp = L.DomEvent.getMousePosition(e, tile);
+
+			if (!tile._layers) continue;
 
 			for (var j = tile._layers.length - 1; j >= 0; j--) {
 				var layer = tile._layers[j];
@@ -68,7 +69,7 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 	},
 
 	_onMouseMove: function (e) {
-		if (!this._map || (this._map.dragging._draggable && this._map.dragging._draggable._moving) || this._map._animatingZoom) {
+		if (!this._map || this._map.dragging._draggable._moving || this._map._animatingZoom) {
 			return;
 		}
 
@@ -137,7 +138,7 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 			} else {
 				description = description + '<br>';
 			}
-			for(var key in  found[layer].attributes) {
+			for (var key in found[layer].attributes) {
 				var value = found[layer].attributes[key];
 				description = description.concat(
 					key.replace(/[A-Z]/g, ' $&') + ': ' +
@@ -149,10 +150,10 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 
 	pixelToLatLng: function (tileKey, tileSize, tileZ, point) {
 		var earthHalfCircum = Math.PI;
-		var earthCircum = earthHalfCircum * 2.0
+		var earthCircum = earthHalfCircum * 2.0;
 		var arc = earthCircum / Math.pow(2, tileZ);
-		var x = -earthHalfCircum + (tileKey.x + (point.x / tileSize.x)) * arc;
-		var y = earthHalfCircum - (tileKey.y + (point.y / tileSize.y)) * arc;
+		var x = -earthHalfCircum + (tileKey.x + (point.x / tileSize)) * arc;
+		var y = earthHalfCircum - (tileKey.y + (point.y / tileSize)) * arc;
 
 		return L.latLng(
 			(360 / Math.PI) * (Math.atan(Math.exp(y)) - (Math.PI / 4)),
@@ -161,27 +162,35 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 
 	_removeTile: function (key) {
 		var tile = this._tiles[key];
-		if (tile && tile.el && tile.el.request)
-			tile.el.request.abort();
-			
-		return L.TileLayer.prototype._removeTile.call(this, key);
+		if (tile && tile.request) {
+			tile.request.abort();
+		}
+
+		L.TileLayer.prototype._removeTile.call(this, key);
 	},
 
-	createTile: function (coords, done) {
-		var url = this.getTileUrl(coords);
-		var tile = document.createElement('img');
-		var zoom = this._getZoomForUrl();
-		var size = this.getTileSize();
-		tile._map = this._map;
+	_loadTile: function (tile, tilePoint) {
+		tile._layer = this;
 		tile._layers = [];
+
+		// Replicate what Leaflet 0.7 does in _loadTile
+		tile.onload = this._tileOnLoad;
+		tile.onerror = this._tileOnError;
+
+		this._adjustTilePoint(tilePoint);
+
+		var zoom = this._getZoomForUrl();
+		var tileSize = this.options.tileSize;
+
+		var url = this.getTileUrl(tilePoint);
+
 		tile.request = superagent.get(url);
 
 		tile.request.responseType('json')
 			.end(L.bind(function (err, response) {
 				tile.request = null;
 
-				if(response && response.body && response.body.image)
-				{
+				if (response && response.body && response.body.image) {
 					var resp = response.body;
 					var prefixMap = {
 						'iVBOR': 'data:image/png;base64,',
@@ -189,7 +198,7 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 						'/9j/4': 'data:image/jpeg;base64,',
 						'Qk02U': 'data:image/bmp;base64,'
 					};
-					
+
 					var rawImage = resp.image;
 					tile.src = prefixMap[rawImage.substr(0, 5)] + rawImage;
 
@@ -201,21 +210,30 @@ L.TileLayer.PtvDeveloper = L.TileLayer.extend({
 							if ('latitude' in feature && 'longitude' in feature) {
 								feature.latLng = L.latLng(feature.latitude, feature.longitude);
 							} else {
-								feature.latLng = this.pixelToLatLng(coords, size, zoom, feature.referencePixelCoordinates);
+								feature.latLng = this.pixelToLatLng(tilePoint, tileSize, zoom, feature.referencePixelCoordinates);
 							}
 							tile._layers.push(feature);
 						}
 					}
+				} else {
+					// Set a transparent pixel so Leaflet considers the tile loaded
+					tile.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRU5ErkJggg==';
 				}
-
-				done(null, tile);
 			}, this));
-		return tile;
+	},
+
+	getTileUrl: function (tilePoint) {
+		return L.Util.template(this._url, L.extend({
+			s: this._getSubdomain(tilePoint),
+			z: tilePoint.z,
+			x: tilePoint.x,
+			y: tilePoint.y
+		}, this.options));
 	}
 });
 
 L.tileLayer.ptvDeveloper = function (url, options) {
-	var resolvedUrl =  L.Util.template(url, L.extend({s: 0, x: 0, y: 0, z: 0}, options));
+	var resolvedUrl = L.Util.template(url, L.extend({s: 0, x: 0, y: 0, z: 0}, options));
 
 	if (resolvedUrl.indexOf('/data-tiles') !== -1) {
 		return new L.TileLayer.PtvDeveloper(url, options);
